@@ -230,6 +230,8 @@ opus_val32 celt_cos_norm32(opus_val32 x)
    opus_int32 x_sq_q29, tmp;
    /* The expected x is in the range of [-1.0f, 1.0f] */
    celt_sig_assert((x >= -1073741824) && (x <= 1073741824));
+   /* Make cos(+/- pi/2) exactly zero. */
+   if (ABS32(x) == 1<<30) return 0;
    x_sq_q29 = MULT32_32_Q31(x, x);
    /* Split evaluation in steps to avoid exploding macro expansion. */
    tmp = ADD32(COS_NORM_COEFF_A3, MULT32_32_Q31(x_sq_q29, COS_NORM_COEFF_A4));
