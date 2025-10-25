@@ -35,6 +35,7 @@
 #include "nnet.h"
 #include "os_support.h"
 #include "pitch.h"
+#include "mathops.h"
 
 #include <math.h>
 
@@ -335,6 +336,9 @@ void adacomb_process_frame(
 }
 
 
+#define NNDSP_1_LOG2 1.4426950408889634f
+#define NNDSP_EXP(x) celt_exp2((x) * NNDSP_1_LOG2)
+
 void adashape_process_frame(
     AdaShapeState *hAdaShape,
     float *x_out,
@@ -432,7 +436,7 @@ void adashape_process_frame(
     /* shape signal */
     for (i = 0; i < frame_size; i ++)
     {
-        x_out[i] = exp(out_buffer[i]) * x_in[i];
+        x_out[i] = NNDSP_EXP(out_buffer[i]) * x_in[i];
     }
 
 }
