@@ -1808,14 +1808,16 @@ void quant_all_bands(int encode, const CELTMode *m, int start, int end,
                unsigned cm, cm2;
                int nstart_bytes, nend_bytes, save_bytes;
                unsigned char *bytes_buf;
-               unsigned char bytes_save[1275];
+               opus_val16 w[2];
+               VARDECL(unsigned char, bytes_save);
 #ifdef ENABLE_QEXT
                ec_ctx ext_ec_save, ext_ec_save2;
                unsigned char *ext_bytes_buf;
                int ext_nstart_bytes, ext_nend_bytes, ext_save_bytes;
-               unsigned char ext_bytes_save[QEXT_PACKET_SIZE_CAP];
+               VARDECL(unsigned char, ext_bytes_save);
+               ALLOC(ext_bytes_save, QEXT_PACKET_SIZE_CAP, unsigned char);
 #endif
-               opus_val16 w[2];
+               ALLOC(bytes_save, 1275, unsigned char);
                compute_channel_weights(bandE[i], bandE[i+m->nbEBands], w);
                /* Make a copy. */
                cm = x_cm|y_cm;
