@@ -155,7 +155,7 @@ static const OpusTXContext celt_tx_mdct_512  = {  512, 1, celt_tx_mdct_map_512, 
 static const OpusTXContext celt_tx_mdct_1024 = { 1024, 1, celt_tx_mdct_map_1024, NULL, NULL, &celt_tx_sr_512, celt_tx_fft_sr_ns_float_neon };
 #endif
 
-static const OpusTXContext *celt_tx_mdct_kernel(int len)
+const OpusTXContext *celt_tx_mdct_kernel(int len)
 {
    switch (len) {
       case  120: return &celt_tx_mdct_120;
