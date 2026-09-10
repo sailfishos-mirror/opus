@@ -70,19 +70,6 @@ static void pfa_downshift(kiss_fft_cpx *x, int N, int *total, int step) {
 #define PFA_DOWNSHIFT(x, N, total, step)
 #endif
 
-typedef struct OpusTXContext OpusTXContext;
-typedef void (*opus_tx_fn)(const OpusTXContext *s, void *out, void *in, ptrdiff_t stride ARG_FIXED(int downshift));
-
-struct OpusTXContext {
-   opus_int32 len;
-   opus_int32 inv;
-   const opus_int16 *map;
-   const void *exp;
-   void *tmp;
-   const struct OpusTXContext *sub;
-   opus_tx_fn fn;
-};
-
 static const opus_int16 p4[4]   = { 0, 2, 1, 3 };
 static const opus_int16 p8[8]   = { 0, 4, 2, 6, 1, 5, 7, 3 };
 static const opus_int16 p16[16] = { 0, 8, 4, 12, 2, 10, 14, 6, 1, 9, 5, 13, 15, 7, 3, 11 };
