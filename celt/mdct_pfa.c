@@ -38,7 +38,7 @@
 #include "_kiss_fft_guts.h"
 #include "stack_alloc.h"
 #include "mathops.h"
-#include <math.h>
+#include <stddef.h>
 
 
 typedef kiss_fft_cpx cpx;
@@ -87,7 +87,6 @@ struct OpusTXContext {
    opus_tx_fn fn;
 };
 
-#include <stddef.h>
 static const opus_int16 p4[4]   = { 0, 2, 1, 3 };
 static const opus_int16 p8[8]   = { 0, 4, 2, 6, 1, 5, 7, 3 };
 static const opus_int16 p16[16] = { 0, 8, 4, 12, 2, 10, 14, 6, 1, 9, 5, 13, 15, 7, 3, 11 };
@@ -102,10 +101,6 @@ static OPUS_INLINE const opus_int16 *get_sr_perm_table(int M) {
    if (M == 64) return p64;
    return NULL;
 }
-
-#ifndef USE_ARM_TX_MDCT
-static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, void *in, ptrdiff_t stride ARG_FIXED(int downshift));
-#endif
 
 #ifndef USE_ARM_TX_MDCT
 #define BF(x, y, a, b) \
@@ -409,7 +404,7 @@ static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, 
 
    {
 #ifdef FIXED_POINT
-      int sub_shift = downshift;
+      int sub_shift;
 #endif
       for (j = 0; j < 15; j++) {
          cpx *row = tmp + j * M;
@@ -418,9 +413,6 @@ static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, 
 #endif
          celt_tx_fft_sr_c(row, row, M ARG_FIXED(&sub_shift));
       }
-#ifdef FIXED_POINT
-      downshift = sub_shift;
-#endif
    }
 
    for (i = 0; i < len; i++) {
@@ -467,8 +459,6 @@ static const struct OpusTXContext *celt_tx_mdct_kernel_c(int len)
 }
 #endif
 
-#if defined(ENABLE_PFA)
-
 static OPUS_INLINE void pfa_copy_bitrev_input(const kiss_fft_state *st, const kiss_fft_cpx *fin, kiss_fft_cpx *fout)
 {
    int i;
@@ -511,7 +501,7 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
    VARDECL(cpx, in_perm);
    SAVE_STACK;
 
-#if !defined(ENABLE_PFA) || defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API) || defined(ENABLE_DEEP_PLC)
+#if defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API) || defined(ENABLE_DEEP_PLC)
    if (tpl == NULL) {
       pfa_copy_bitrev_input(st, fin, fout);
       if (is_inverse) {
@@ -577,6 +567,5 @@ void opus_ifft_pfa_c(const kiss_fft_state *st, const kiss_fft_cpx *fin, kiss_fft
 {
    opus_pfa_impl(st, fin, fout, 1 ARG_FIXED(fft_shift));
 }
-#endif
 
 #endif /* ENABLE_PFA */
