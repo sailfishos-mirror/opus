@@ -31,15 +31,16 @@
 #if defined(ENABLE_PFA)
 
 #include "mdct.h"
-#if defined(OPUS_ARM_TX_MDCT) && defined(OPUS_ARM_PRESUME_NEON_INTR)
-#define USE_ARM_TX_MDCT
-#endif
 #include "kiss_fft.h"
 #include "_kiss_fft_guts.h"
 #include "stack_alloc.h"
 #include "mathops.h"
 #include <stddef.h>
 #include "celt_tx_tables.h"
+
+#if defined(OPUS_ARM_TX_MDCT) && defined(OPUS_ARM_PRESUME_NEON_INTR)
+#define USE_ARM_TX_MDCT
+#endif
 
 #define COS_2PI_5  celt_tx_tab_53[0]
 #define COS_4PI_5  celt_tx_tab_53[2]
@@ -374,14 +375,14 @@ static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, 
    int M = s->sub->len;
    const opus_int16 *perm;
    kiss_fft_cpx *tmp = (kiss_fft_cpx *)s->tmp;
-   const kiss_fft_cpx *in_cpx = (const kiss_fft_cpx *)in;
+   kiss_fft_cpx *in_cpx = (kiss_fft_cpx *)in;
    kiss_fft_cpx *out_cpx = (kiss_fft_cpx *)out;
 
    (void)stride;
 
    perm = get_sr_perm_table(M);
    celt_assert(perm != NULL);
-   PFA_DOWNSHIFT((kiss_fft_cpx*)in, len, &downshift, 3);
+   PFA_DOWNSHIFT(in_cpx, len, &downshift, 3);
    for (i = 0; i < M; i++) {
       celt_tx_fft15_c(in_cpx + 15 * perm[i], tmp + i, M);
    }
