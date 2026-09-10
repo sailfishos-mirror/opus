@@ -482,7 +482,6 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
    const struct OpusTXContext *tpl = get_pfa_context(nfft, &mdct_tpl);
    struct OpusTXContext pfa;
    VARDECL(kiss_fft_cpx, tmp);
-   VARDECL(kiss_fft_cpx, in_perm);
    SAVE_STACK;
 
 #if defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API) || defined(ENABLE_DEEP_PLC)
@@ -505,23 +504,26 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
 #endif
 
    ALLOC(tmp, nfft, kiss_fft_cpx);
-   ALLOC(in_perm, nfft, kiss_fft_cpx);
 
    pfa_map = mdct_tpl->map + nfft;
 
+   if (fin == fout) {
+      OPUS_COPY(tmp, fin, nfft);
+      fin = tmp;
+   }
    for (i = 0; i < nfft; i++)
-      in_perm[pfa_map[i]] = fin[i];
+      fout[pfa_map[i]] = fin[i];
 
    pfa = *tpl;
    pfa.tmp = tmp;
 
 #if defined(USE_ARM_TX_MDCT)
-   mdct_tpl->fn(&pfa, fout, in_perm, sizeof(kiss_fft_cpx) ARG_FIXED(shift));
+   mdct_tpl->fn(&pfa, fout, fout, sizeof(kiss_fft_cpx) ARG_FIXED(shift));
    /* Time-reverse the output from index 1 to N-1 to obtain forward DFT
       because the Neon assembly computes Inverse DFT by default */
    if (!is_inverse)
 #else
-   celt_tx_fft_pfa_15xM_ns_c(&pfa, fout, in_perm, 1 ARG_FIXED(shift));
+   celt_tx_fft_pfa_15xM_ns_c(&pfa, fout, fout, 1 ARG_FIXED(shift));
 
    /* Time-reverse the output from index 1 to N-1 to obtain inverse DFT */
    if (is_inverse)
