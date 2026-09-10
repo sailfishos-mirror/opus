@@ -39,11 +39,6 @@
 #include "stack_alloc.h"
 #include "mathops.h"
 #include <stddef.h>
-
-
-typedef kiss_fft_cpx cpx;
-
-
 #include "celt_tx_tables.h"
 
 #define COS_2PI_5  celt_tx_tab_53[0]
@@ -53,7 +48,7 @@ typedef kiss_fft_cpx cpx;
 #define SIN_2PI_3  celt_tx_tab_53[8]
 
 #ifdef FIXED_POINT
-static void pfa_downshift(cpx *x, int N, int *total, int step) {
+static void pfa_downshift(kiss_fft_cpx *x, int N, int *total, int step) {
    int i;
    int shift = IMIN(step, *total);
    *total -= shift;
@@ -71,7 +66,7 @@ static void pfa_downshift(cpx *x, int N, int *total, int step) {
 }
 #define PFA_DOWNSHIFT(x, N, total, step) pfa_downshift(x, N, total, step)
 #else
-#define PFA_DOWNSHIFT(x, N, total, step) do { (void)(x); (void)(N); (void)(total); (void)(step); } while (0)
+#define PFA_DOWNSHIFT(x, N, total, step)
 #endif
 
 typedef struct OpusTXContext OpusTXContext;
@@ -142,7 +137,7 @@ static OPUS_INLINE const opus_int16 *get_sr_perm_table(int M) {
         BUTTERFLIES(a0, a1, a2, a3); \
     } while (0)
 
-static OPUS_INLINE void celt_tx_fft_sr_combine(cpx *z, const kiss_twiddle_scalar *cos, int len)
+static OPUS_INLINE void celt_tx_fft_sr_combine(kiss_fft_cpx *z, const kiss_twiddle_scalar *cos, int len)
 {
     int o1 = 2*len;
     int o2 = 4*len;
@@ -168,15 +163,15 @@ static OPUS_INLINE void celt_tx_fft_sr_combine(cpx *z, const kiss_twiddle_scalar
     }
 }
 
-static OPUS_INLINE void celt_tx_fft2(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft2(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
-    cpx tmp;
+    kiss_fft_cpx tmp;
     BF(tmp.r, dst[0].r, src[0].r, src[1].r);
     BF(tmp.i, dst[0].i, src[0].i, src[1].i);
     dst[1] = tmp;
 }
 
-static OPUS_INLINE void celt_tx_fft4(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft4(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     kiss_fft_scalar t1, t2, t3, t4, t5, t6, t7, t8;
 
@@ -190,7 +185,7 @@ static OPUS_INLINE void celt_tx_fft4(cpx *dst, const cpx *src)
     BF(dst[2].i, dst[0].i, t2, t5);
 }
 
-static OPUS_INLINE void celt_tx_fft8(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft8(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     kiss_fft_scalar t1, t2, t3, t4, t5, t6, r0, i0, r1, i1;
     kiss_twiddle_scalar cos = celt_tx_tab_32[4];
@@ -210,7 +205,7 @@ static OPUS_INLINE void celt_tx_fft8(cpx *dst, const cpx *src)
     TRANSFORM(dst[1], dst[3], dst[5], dst[7], cos, cos);
 }
 
-static OPUS_INLINE void celt_tx_fft16(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft16(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     kiss_fft_scalar t1, t2, t3, t4, t5, t6, r0, i0, r1, i1;
     kiss_twiddle_scalar cos_16_1 = celt_tx_tab_32[2];
@@ -232,7 +227,7 @@ static OPUS_INLINE void celt_tx_fft16(cpx *dst, const cpx *src)
     TRANSFORM(dst[ 3], dst[ 7], dst[11], dst[15], cos_16_3, cos_16_1);
 }
 
-static OPUS_INLINE void celt_tx_fft32(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft32(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     const kiss_twiddle_scalar *cos = celt_tx_tab_32;
     celt_tx_fft16(dst, src);
@@ -241,7 +236,7 @@ static OPUS_INLINE void celt_tx_fft32(cpx *dst, const cpx *src)
     celt_tx_fft_sr_combine(dst, cos, 4);
 }
 
-static OPUS_INLINE void celt_tx_fft64(cpx *dst, const cpx *src)
+static OPUS_INLINE void celt_tx_fft64(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     const kiss_twiddle_scalar *cos = celt_tx_tab_64;
     celt_tx_fft32(dst, src);
@@ -250,11 +245,11 @@ static OPUS_INLINE void celt_tx_fft64(cpx *dst, const cpx *src)
     celt_tx_fft_sr_combine(dst, cos, 8);
 }
 
-static void celt_tx_fft_sr_c(cpx *dst, const cpx *src, int N ARG_FIXED(int *downshift_ptr))
+static void celt_tx_fft_sr_c(kiss_fft_cpx *dst, const kiss_fft_cpx *src, int N ARG_FIXED(int *downshift_ptr))
 {
 #ifdef FIXED_POINT
    int stages = celt_ilog2(N);
-   PFA_DOWNSHIFT((cpx*)src, N, downshift_ptr, stages);
+   PFA_DOWNSHIFT((kiss_fft_cpx*)src, N, downshift_ptr, stages);
 #endif
    switch (N) {
       case   2: celt_tx_fft2(dst, src); break;
@@ -270,17 +265,11 @@ static void celt_tx_fft_sr_c(cpx *dst, const cpx *src, int N ARG_FIXED(int *down
 #endif
 }
 
-#undef BF
-#undef CMUL
-#undef CMUL_CONJ
-#undef BUTTERFLIES
-#undef TRANSFORM
-
 /*
  * 15-point Good-Thomas Prime Factor Algorithm (PFA) DFT core.
  * Mathematically identical to FFT15_CORE from celt_tx_neon.S.
  */
-static void winograd_fft3(const cpx *in0, const cpx *in1, const cpx *in2, cpx *out0, cpx *out1, cpx *out2) {
+static void winograd_fft3(const kiss_fft_cpx *in0, const kiss_fft_cpx *in1, const kiss_fft_cpx *in2, kiss_fft_cpx *out0, kiss_fft_cpx *out1, kiss_fft_cpx *out2) {
    kiss_fft_scalar r_sum12, r_diff12, i_sum12, i_diff12;
    kiss_fft_scalar t1_r, t1_i, t2_r, t2_i;
 
@@ -304,8 +293,8 @@ static void winograd_fft3(const cpx *in0, const cpx *in1, const cpx *in2, cpx *o
    out2->i = ADD32_ovflw(SUB32_ovflw(in0->i, t2_i), t1_i);
 }
 
-static OPUS_INLINE void decl_fft5(const cpx *in, int idx0, int idx1, int idx2, int idx3, int idx4, cpx *out, int stride) {
-   cpx dc;
+static OPUS_INLINE void winograd_fft5(const kiss_fft_cpx *in, int idx0, int idx1, int idx2, int idx3, int idx4, kiss_fft_cpx *out, int stride) {
+   kiss_fft_cpx dc;
    kiss_fft_scalar r_sum14, r_diff14, i_sum14, i_diff14;
    kiss_fft_scalar r_sum23, r_diff23, i_sum23, i_diff23;
    kiss_fft_scalar r_t4, r_t0, i_t4, i_t0;
@@ -354,8 +343,8 @@ static OPUS_INLINE void decl_fft5(const cpx *in, int idx0, int idx1, int idx2, i
    out[s4].i = ADD32_ovflw(dc.i, SUB32_ovflw(i_t4, i_t5));
 }
 
-static void celt_tx_fft15_c(const cpx *in, cpx *out, int stride) {
-   cpx tmp[15];
+static void celt_tx_fft15_c(const kiss_fft_cpx *in, kiss_fft_cpx *out, int stride) {
+   kiss_fft_cpx tmp[15];
 
    /* c5 = 0 */
    winograd_fft3(&in[2], &in[0], &in[1], &tmp[0], &tmp[5], &tmp[10]);
@@ -372,9 +361,9 @@ static void celt_tx_fft15_c(const cpx *in, cpx *out, int stride) {
    /* c5 = 4 */
    winograd_fft3(&in[12], &in[4], &in[8], &tmp[4], &tmp[9], &tmp[14]);
 
-   decl_fft5(tmp, 0, 3, 6, 9, 12, out, stride);
-   decl_fft5(tmp + 5, 5, 8, 11, 14, 2, out, stride);
-   decl_fft5(tmp + 10, 10, 13, 1, 4, 7, out, stride);
+   winograd_fft5(tmp, 0, 3, 6, 9, 12, out, stride);
+   winograd_fft5(tmp + 5, 5, 8, 11, 14, 2, out, stride);
+   winograd_fft5(tmp + 10, 10, 13, 1, 4, 7, out, stride);
 }
 
 static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, void *in, ptrdiff_t stride ARG_FIXED(int downshift)) {
@@ -382,21 +371,15 @@ static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, 
    int len = s->len;
    int M = s->sub->len;
    const opus_int16 *perm;
-   cpx *tmp = (cpx *)s->tmp;
-   const cpx *in_cpx = (const cpx *)in;
-   cpx *out_cpx = (cpx *)out;
-#ifndef FIXED_POINT
-   int downshift = 0;
-#endif
+   kiss_fft_cpx *tmp = (kiss_fft_cpx *)s->tmp;
+   const kiss_fft_cpx *in_cpx = (const kiss_fft_cpx *)in;
+   kiss_fft_cpx *out_cpx = (kiss_fft_cpx *)out;
 
    (void)stride;
-#ifndef FIXED_POINT
-   (void)downshift;
-#endif
 
    perm = get_sr_perm_table(M);
    celt_assert(perm != NULL);
-   PFA_DOWNSHIFT((cpx*)in, len, &downshift, 3);
+   PFA_DOWNSHIFT((kiss_fft_cpx*)in, len, &downshift, 3);
    for (i = 0; i < M; i++) {
       celt_tx_fft15_c(in_cpx + 15 * perm[i], tmp + i, M);
    }
@@ -407,7 +390,7 @@ static void celt_tx_fft_pfa_15xM_ns_c(const struct OpusTXContext *s, void *out, 
       int sub_shift;
 #endif
       for (j = 0; j < 15; j++) {
-         cpx *row = tmp + j * M;
+         kiss_fft_cpx *row = tmp + j * M;
 #ifdef FIXED_POINT
          sub_shift = downshift;
 #endif
@@ -459,6 +442,7 @@ static const struct OpusTXContext *celt_tx_mdct_kernel_c(int len)
 }
 #endif
 
+#if defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API) || defined(ENABLE_DEEP_PLC)
 static OPUS_INLINE void pfa_copy_bitrev_input(const kiss_fft_state *st, const kiss_fft_cpx *fin, kiss_fft_cpx *fout)
 {
    int i;
@@ -467,8 +451,7 @@ static OPUS_INLINE void pfa_copy_bitrev_input(const kiss_fft_state *st, const ki
       VARDECL(kiss_fft_cpx, tmp_perm);
       SAVE_STACK;
       ALLOC(tmp_perm, nfft, kiss_fft_cpx);
-      for (i = 0; i < nfft; i++)
-         tmp_perm[i] = fin[i];
+      OPUS_COPY(tmp_perm, fin, nfft);
       for (i = 0; i < nfft; i++)
          fout[st->bitrev[i]] = tmp_perm[i];
       RESTORE_STACK;
@@ -477,6 +460,7 @@ static OPUS_INLINE void pfa_copy_bitrev_input(const kiss_fft_state *st, const ki
          fout[st->bitrev[i]] = fin[i];
    }
 }
+#endif
 
 static OPUS_INLINE const struct OpusTXContext *get_pfa_context(int nfft, const struct OpusTXContext **mdct_tpl)
 {
@@ -497,8 +481,8 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
    const struct OpusTXContext *mdct_tpl;
    const struct OpusTXContext *tpl = get_pfa_context(nfft, &mdct_tpl);
    struct OpusTXContext pfa;
-   VARDECL(cpx, tmp);
-   VARDECL(cpx, in_perm);
+   VARDECL(kiss_fft_cpx, tmp);
+   VARDECL(kiss_fft_cpx, in_perm);
    SAVE_STACK;
 
 #if defined(CUSTOM_MODES) || defined(ENABLE_OPUS_CUSTOM_API) || defined(ENABLE_DEEP_PLC)
@@ -520,8 +504,8 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
    celt_assert2(tpl != NULL, "PFA FFT/IFFT called with unsupported size in non-custom mode");
 #endif
 
-   ALLOC(tmp, nfft, cpx);
-   ALLOC(in_perm, nfft, cpx);
+   ALLOC(tmp, nfft, kiss_fft_cpx);
+   ALLOC(in_perm, nfft, kiss_fft_cpx);
 
    pfa_map = mdct_tpl->map + nfft;
 
@@ -535,25 +519,18 @@ static void opus_pfa_impl(const kiss_fft_state *st, const kiss_fft_cpx *fin, kis
    mdct_tpl->fn(&pfa, fout, in_perm, sizeof(kiss_fft_cpx) ARG_FIXED(shift));
    /* Time-reverse the output from index 1 to N-1 to obtain forward DFT
       because the Neon assembly computes Inverse DFT by default */
-   if (!is_inverse) {
-      for (i = 1; i < (nfft + 1) / 2; i++) {
-         cpx t = fout[i];
-         fout[i] = fout[nfft - i];
-         fout[nfft - i] = t;
-      }
-   }
+   if (!is_inverse)
 #else
    celt_tx_fft_pfa_15xM_ns_c(&pfa, fout, in_perm, 1 ARG_FIXED(shift));
 
    /* Time-reverse the output from index 1 to N-1 to obtain inverse DFT */
-   if (is_inverse) {
+   if (is_inverse)
+#endif
       for (i = 1; i < (nfft + 1) / 2; i++) {
-         cpx t = fout[i];
+         kiss_fft_cpx t = fout[i];
          fout[i] = fout[nfft - i];
          fout[nfft - i] = t;
       }
-   }
-#endif
 
    RESTORE_STACK;
 }
