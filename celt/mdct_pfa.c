@@ -86,14 +86,18 @@ static const opus_int16 p4[4]   = { 0, 2, 1, 3 };
 static const opus_int16 p8[8]   = { 0, 4, 2, 6, 1, 5, 7, 3 };
 static const opus_int16 p16[16] = { 0, 8, 4, 12, 2, 10, 14, 6, 1, 9, 5, 13, 15, 7, 3, 11 };
 static const opus_int16 p32[32] = { 0, 16, 8, 24, 4, 20, 28, 12, 2, 18, 10, 26, 30, 14, 6, 22, 1, 17, 9, 25, 5, 21, 29, 13, 31, 15, 7, 23, 3, 19, 27, 11 };
+#ifdef ENABLE_QEXT
 static const opus_int16 p64[64] = { 0, 32, 16, 48, 8, 40, 56, 24, 4, 36, 20, 52, 60, 28, 12, 44, 2, 34, 18, 50, 10, 42, 58, 26, 62, 30, 14, 46, 6, 38, 54, 22, 1, 33, 17, 49, 9, 41, 57, 25, 5, 37, 21, 53, 61, 29, 13, 45, 63, 31, 15, 47, 7, 39, 55, 23, 3, 35, 19, 51, 59, 27, 11, 43 };
+#endif
 
 static OPUS_INLINE const opus_int16 *get_sr_perm_table(int M) {
    if (M == 4) return p4;
    if (M == 8) return p8;
    if (M == 16) return p16;
    if (M == 32) return p32;
+#ifdef ENABLE_QEXT
    if (M == 64) return p64;
+#endif
    return NULL;
 }
 
@@ -137,28 +141,28 @@ static OPUS_INLINE const opus_int16 *get_sr_perm_table(int M) {
         BUTTERFLIES(a0, a1, a2, a3); \
     } while (0)
 
-static OPUS_INLINE void celt_tx_fft_sr_combine(kiss_fft_cpx *z, const kiss_twiddle_scalar *cos, int len)
+static OPUS_INLINE void celt_tx_fft_sr_combine(kiss_fft_cpx *z, const kiss_twiddle_scalar *cos_tab, int len)
 {
     int o1 = 2*len;
     int o2 = 4*len;
     int o3 = 6*len;
-    const kiss_twiddle_scalar *wim = cos + o1 - 7;
+    const kiss_twiddle_scalar *wim = cos_tab + o1 - 7;
     kiss_fft_scalar t1, t2, t3, t4, t5, t6, r0, i0, r1, i1;
     int i;
 
     for (i = 0; i < len; i += 4) {
-        TRANSFORM(z[0], z[o1 + 0], z[o2 + 0], z[o3 + 0], cos[0], wim[7]);
-        TRANSFORM(z[2], z[o1 + 2], z[o2 + 2], z[o3 + 2], cos[2], wim[5]);
-        TRANSFORM(z[4], z[o1 + 4], z[o2 + 4], z[o3 + 4], cos[4], wim[3]);
-        TRANSFORM(z[6], z[o1 + 6], z[o2 + 6], z[o3 + 6], cos[6], wim[1]);
+        TRANSFORM(z[0], z[o1 + 0], z[o2 + 0], z[o3 + 0], cos_tab[0], wim[7]);
+        TRANSFORM(z[2], z[o1 + 2], z[o2 + 2], z[o3 + 2], cos_tab[2], wim[5]);
+        TRANSFORM(z[4], z[o1 + 4], z[o2 + 4], z[o3 + 4], cos_tab[4], wim[3]);
+        TRANSFORM(z[6], z[o1 + 6], z[o2 + 6], z[o3 + 6], cos_tab[6], wim[1]);
 
-        TRANSFORM(z[1], z[o1 + 1], z[o2 + 1], z[o3 + 1], cos[1], wim[6]);
-        TRANSFORM(z[3], z[o1 + 3], z[o2 + 3], z[o3 + 3], cos[3], wim[4]);
-        TRANSFORM(z[5], z[o1 + 5], z[o2 + 5], z[o3 + 5], cos[5], wim[2]);
-        TRANSFORM(z[7], z[o1 + 7], z[o2 + 7], z[o3 + 7], cos[7], wim[0]);
+        TRANSFORM(z[1], z[o1 + 1], z[o2 + 1], z[o3 + 1], cos_tab[1], wim[6]);
+        TRANSFORM(z[3], z[o1 + 3], z[o2 + 3], z[o3 + 3], cos_tab[3], wim[4]);
+        TRANSFORM(z[5], z[o1 + 5], z[o2 + 5], z[o3 + 5], cos_tab[5], wim[2]);
+        TRANSFORM(z[7], z[o1 + 7], z[o2 + 7], z[o3 + 7], cos_tab[7], wim[0]);
 
         z   += 2*4;
-        cos += 2*4;
+        cos_tab += 2*4;
         wim -= 2*4;
     }
 }
@@ -188,7 +192,7 @@ static OPUS_INLINE void celt_tx_fft4(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 static OPUS_INLINE void celt_tx_fft8(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
     kiss_fft_scalar t1, t2, t3, t4, t5, t6, r0, i0, r1, i1;
-    kiss_twiddle_scalar cos = celt_tx_tab_32[4];
+    kiss_twiddle_scalar cos_val = celt_tx_tab_32[4];
 
     celt_tx_fft4(dst, src);
 
@@ -202,7 +206,7 @@ static OPUS_INLINE void celt_tx_fft8(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
     dst[7].i = SUB32_ovflw(src[6].i, src[7].i);
 
     BUTTERFLIES(dst[0], dst[2], dst[4], dst[6]);
-    TRANSFORM(dst[1], dst[3], dst[5], dst[7], cos, cos);
+    TRANSFORM(dst[1], dst[3], dst[5], dst[7], cos_val, cos_val);
 }
 
 static OPUS_INLINE void celt_tx_fft16(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
@@ -229,23 +233,21 @@ static OPUS_INLINE void celt_tx_fft16(kiss_fft_cpx *dst, const kiss_fft_cpx *src
 
 static OPUS_INLINE void celt_tx_fft32(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
-    const kiss_twiddle_scalar *cos = celt_tx_tab_32;
     celt_tx_fft16(dst, src);
     celt_tx_fft8(dst + 16, src + 16);
     celt_tx_fft8(dst + 24, src + 24);
-    celt_tx_fft_sr_combine(dst, cos, 4);
+    celt_tx_fft_sr_combine(dst, celt_tx_tab_32, 4);
 }
 
 static OPUS_INLINE void celt_tx_fft64(kiss_fft_cpx *dst, const kiss_fft_cpx *src)
 {
-    const kiss_twiddle_scalar *cos = celt_tx_tab_64;
     celt_tx_fft32(dst, src);
     celt_tx_fft16(dst + 32, src + 32);
     celt_tx_fft16(dst + 48, src + 48);
-    celt_tx_fft_sr_combine(dst, cos, 8);
+    celt_tx_fft_sr_combine(dst, celt_tx_tab_64, 8);
 }
 
-static void celt_tx_fft_sr_c(kiss_fft_cpx *dst, const kiss_fft_cpx *src, int N ARG_FIXED(int *downshift_ptr))
+static void celt_tx_fft_sr_c(kiss_fft_cpx *dst, kiss_fft_cpx *src, int N ARG_FIXED(int *downshift_ptr))
 {
 #ifdef FIXED_POINT
    int stages = celt_ilog2(N);
