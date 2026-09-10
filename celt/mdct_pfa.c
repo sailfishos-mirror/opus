@@ -70,6 +70,7 @@ static void pfa_downshift(kiss_fft_cpx *x, int N, int *total, int step) {
 #define PFA_DOWNSHIFT(x, N, total, step)
 #endif
 
+#ifndef USE_ARM_TX_MDCT
 static const opus_int16 p4[4]   = { 0, 2, 1, 3 };
 static const opus_int16 p8[8]   = { 0, 4, 2, 6, 1, 5, 7, 3 };
 static const opus_int16 p16[16] = { 0, 8, 4, 12, 2, 10, 14, 6, 1, 9, 5, 13, 15, 7, 3, 11 };
@@ -89,7 +90,6 @@ static OPUS_INLINE const opus_int16 *get_sr_perm_table(int M) {
    return NULL;
 }
 
-#ifndef USE_ARM_TX_MDCT
 #define BF(x, y, a, b) \
     do { \
         x = SUB32_ovflw(a, b); \
@@ -320,17 +320,22 @@ static OPUS_INLINE void winograd_fft5(const kiss_fft_cpx *in, int idx0, int idx1
    i_t5 = NEG32_ovflw(ADD32_ovflw(S_MUL(r_diff14, SIN_2PI_5), S_MUL(r_diff23, SIN_4PI_5)));
    i_t1 = SUB32_ovflw(S_MUL(r_diff23, SIN_2PI_5), S_MUL(r_diff14, SIN_4PI_5));
 
-   out[s1].r = ADD32_ovflw(dc.r, ADD32_ovflw(r_t4, r_t5));
-   out[s1].i = ADD32_ovflw(dc.i, ADD32_ovflw(i_t4, i_t5));
+   kiss_fft_scalar r_base4 = ADD32_ovflw(dc.r, r_t4);
+   kiss_fft_scalar i_base4 = ADD32_ovflw(dc.i, i_t4);
+   kiss_fft_scalar r_base0 = ADD32_ovflw(dc.r, r_t0);
+   kiss_fft_scalar i_base0 = ADD32_ovflw(dc.i, i_t0);
 
-   out[s2].r = ADD32_ovflw(dc.r, ADD32_ovflw(r_t0, r_t1));
-   out[s2].i = ADD32_ovflw(dc.i, ADD32_ovflw(i_t0, i_t1));
+   out[s1].r = ADD32_ovflw(r_base4, r_t5);
+   out[s1].i = ADD32_ovflw(i_base4, i_t5);
 
-   out[s3].r = ADD32_ovflw(dc.r, SUB32_ovflw(r_t0, r_t1));
-   out[s3].i = ADD32_ovflw(dc.i, SUB32_ovflw(i_t0, i_t1));
+   out[s2].r = ADD32_ovflw(r_base0, r_t1);
+   out[s2].i = ADD32_ovflw(i_base0, i_t1);
 
-   out[s4].r = ADD32_ovflw(dc.r, SUB32_ovflw(r_t4, r_t5));
-   out[s4].i = ADD32_ovflw(dc.i, SUB32_ovflw(i_t4, i_t5));
+   out[s3].r = SUB32_ovflw(r_base0, r_t1);
+   out[s3].i = SUB32_ovflw(i_base0, i_t1);
+
+   out[s4].r = SUB32_ovflw(r_base4, r_t5);
+   out[s4].i = SUB32_ovflw(i_base4, i_t5);
 }
 
 static void celt_tx_fft15_c(const kiss_fft_cpx *in, kiss_fft_cpx *out, int stride) {
